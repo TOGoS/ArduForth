@@ -1,0 +1,47 @@
+Forth interpreter design
+
+Use as command language.
+Simplest use case is to push integers onto a stack and call predefined functions.
+
+Single threaded, event-driven.
+Can register procedures to occur on a timer or in response to events.
+Event handling must not interfere with commands coming from serial.
+Event handlers must therefore leave the stack in the same state as they found it.
+
+Data:
+  - built-in string table (in ROM)
+  - build-in word list (in ROM)
+  - user-defined string table
+  - user-defined word list
+  - 32-bit integer data stack
+  - current word buffer
+  - tokenizer/parser/interpreter flags
+    - compile mode?
+    - compiling named word?
+
+Main loop:
+  - handle any incoming characters
+  - handle any events
+
+Words and string pointers can be represented on the stack
+
+Words
+  \d+ - push integer onto stack
+  '... - push string onto stack
+  "..." - push string onto stack
+  : <name> <word> <word> <word> ... ; - define a new named word
+  { <word> <word> <word> ... } - define an anonymous word
+  : - read next token onto stack and put into compile mode
+  ; - close word list, put pointer on stack, swap, and define-word
+  
+  empty-stack - clear the stack
+  define-word - (word-list name --)
+  get-word - look up word and push pointer onto stack
+  do-word - pop word pointer and execute word
+  reset - clear all runtime data (user-defined strings, words, stack, etc)
+  print-int - pop and print integer to serial port
+  print-string - pop string pointer and pring its target to serial port
+  + - add integers
+  - - substract integers
+
+http://forum.arduino.cc/index.php?topic=65489.15
