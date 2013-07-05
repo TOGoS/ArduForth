@@ -4,9 +4,11 @@ char ArduForth_tokenBuffer[ArduForth_MAX_TOKEN_LENGTH];
 byte ArduForth_tokenBufferLength = 0;
 
 void ArduForth_flushToken() {
-  ArduForth_tokenBuffer[ArduForth_tokenBufferLength++] = 0;
-  Serial.print("You said: ");
-  Serial.println(ArduForth_tokenBuffer);
+  ArduForth_tokenBuffer[ArduForth_tokenBufferLength] = 0;
+  if( ArduForth_tokenBufferLength > 0 ) {
+    Serial.print("You said: ");
+    Serial.println(ArduForth_tokenBuffer);
+  }
   ArduForth_tokenBufferLength = 0;
 }
 
@@ -40,6 +42,8 @@ void loop() {
     ArduForth_handleChar(Serial.read());
   }
   
+  
+  /*  timer demonstration
   if( time - nextTickTime >= 0 ) {
     if( Serial ) {
       Serial.print("Tick! Target: ");
@@ -56,5 +60,6 @@ void loop() {
       nextTickTime = time + 1000;
     }
   }
+  */
 }
 
