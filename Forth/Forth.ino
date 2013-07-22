@@ -1,51 +1,71 @@
-const byte ArduForth_MAX_TOKEN_LENGTH = 32;
-
-char ArduForth_tokenBuffer[ArduForth_MAX_TOKEN_LENGTH];
-byte ArduForth_tokenBufferLength = 0;
-
-int ArduForth_stack[32];
-int ArduForth_stackDepth = 0;
-
-void ArduForth_handleWord( char *buffer, int len ) {
-  boolean isInteger = true;
-  int intVal = 0;
-  for( int i=0; i<len; ++i ) {
-    if( buffer[i] < '0' || buffer[i] > '9' ) {
-      isInteger = false;
-      break;
+namespace ArduForth {
+  const byte MAX_TOKEN_LENGTH = 32;
+  const byte MAX_STACK_DEPTH = 32;
+  
+  template <class Item>
+  struct Pool {
+    Item *begin;
+    Item *end;
+    
+    Item *allocate( int count ) {
+      if( begin + count <= end ) {
+        Item *b = begin;
+        begin += count;
+        return b;
+        return true;
+      } else {
+        return false;
+      }
+    };
+  };
+  
+  char tokenBuffer[MAX_TOKEN_LENGTH];
+  byte tokenBufferLength = 0;
+  
+  int stack[MAX_STACK_DEPTH];
+  int stackDepth = 0;
+  
+  void handleWord( char *buffer, int len ) {
+    boolean isInteger = true;
+    int intVal = 0;
+    for( int i=0; i<len; ++i ) {
+      if( buffer[i] < '0' || buffer[i] > '9' ) {
+        isInteger = false;
+        break;
+      }
+      intVal *= 10;
+      intVal += buffer[i] - '0';
     }
-    intVal *= 10;
-    intVal += buffer[i] - '0';
+    
+    if( isInteger ) {
+      Serial.print("You entered integer: ");
+      Serial.println(intVal);
+      stack[stackDepth--] = intVal;
+    } else {
+      Serial.println("You entered some non-integer");
+    }
   }
   
-  if( isInteger ) {
-    Serial.print("You entered integer: ");
-    Serial.println(intVal);
-    ArduForth_stack[ArduForth_stackDepth--] = intVal;
-  } else {
-    Serial.println("You entered some non-integer");
+  void flushToken() {
+    tokenBuffer[tokenBufferLength] = 0;
+    if( tokenBufferLength > 0 ) {
+      handleWord( tokenBuffer, tokenBufferLength );
+    }
+    tokenBufferLength = 0;
   }
-}
-
-void ArduForth_flushToken() {
-  ArduForth_tokenBuffer[ArduForth_tokenBufferLength] = 0;
-  if( ArduForth_tokenBufferLength > 0 ) {
-    ArduForth_handleWord( ArduForth_tokenBuffer, ArduForth_tokenBufferLength );
-  }
-  ArduForth_tokenBufferLength = 0;
-}
-
-void ArduForth_handleChar( char c ) {
-  // TODO: Handle double-quoted strings
-  switch( c ) {
-  case '\n': case ' ': case '\t': case '\r':
-    ArduForth_flushToken();
-    break;
-  default:
-    ArduForth_tokenBuffer[ArduForth_tokenBufferLength++] = c;
-  }
-  if( ArduForth_tokenBufferLength >= ArduForth_MAX_TOKEN_LENGTH ) {
-    Serial.println("Token too long.");
+  
+  void handleChar( char c ) {
+    // TODO: Handle double-quoted strings
+    switch( c ) {
+    case '\n': case ' ': case '\t': case '\r':
+      flushToken();
+      break;
+    default:
+      tokenBuffer[tokenBufferLength++] = c;
+    }
+    if( tokenBufferLength >= MAX_TOKEN_LENGTH ) {
+      Serial.println("Token too long.");
+    }
   }
 }
 
@@ -66,9 +86,8 @@ millis_t nextTickTime = 0;
 void loop() {
   millis_t time = millis();
   while( Serial.available() > 0 ) {
-    ArduForth_handleChar(Serial.read());
+    ArduForth::handleChar(Serial.read());
   }
-  
   
   /*  timer demonstration
   if( time - nextTickTime >= 0 ) {
