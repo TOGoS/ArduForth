@@ -3,11 +3,34 @@ const byte ArduForth_MAX_TOKEN_LENGTH = 32;
 char ArduForth_tokenBuffer[ArduForth_MAX_TOKEN_LENGTH];
 byte ArduForth_tokenBufferLength = 0;
 
+int ArduForth_stack[32];
+int ArduForth_stackDepth = 0;
+
+void ArduForth_handleWord( char *buffer, int len ) {
+  boolean isInteger = true;
+  int intVal = 0;
+  for( int i=0; i<len; ++i ) {
+    if( buffer[i] < '0' || buffer[i] > '9' ) {
+      isInteger = false;
+      break;
+    }
+    intVal *= 10;
+    intVal += buffer[i] - '0';
+  }
+  
+  if( isInteger ) {
+    Serial.print("You entered integer: ");
+    Serial.println(intVal);
+    ArduForth_stack[ArduForth_stackDepth--] = intVal;
+  } else {
+    Serial.println("You entered some non-integer");
+  }
+}
+
 void ArduForth_flushToken() {
   ArduForth_tokenBuffer[ArduForth_tokenBufferLength] = 0;
   if( ArduForth_tokenBufferLength > 0 ) {
-    Serial.print("You said: ");
-    Serial.println(ArduForth_tokenBuffer);
+    ArduForth_handleWord( ArduForth_tokenBuffer, ArduForth_tokenBufferLength );
   }
   ArduForth_tokenBufferLength = 0;
 }
@@ -32,7 +55,11 @@ void setup() {
   Serial.begin(9600);
   while( !Serial ) { }
   Serial.println();
-  Serial.println("Hello, world!");
+  Serial.println("# Hello, world!");
+  Serial.print("# sizeof(int) = ");
+  Serial.println(sizeof(int));
+  Serial.print("# sizeof(void *) = ");
+  Serial.println(sizeof(void *));
 }
 
 millis_t nextTickTime = 0;
