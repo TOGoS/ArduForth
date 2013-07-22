@@ -23,7 +23,67 @@ namespace ArduForth {
   byte tokenBufferLength = 0;
   
   int stack[MAX_STACK_DEPTH];
-  int stackDepth = 0;
+  int stackBottom = MAX_STACK_DEPTH;
+  
+  struct Word {
+    boolean isCompileTime;
+    boolean isNative;
+    union {
+      void (*nativeFunction)();
+      Word *forthFunction;
+    } implementation;
+    char *text;
+  };
+  
+  template <class Item>
+  struct Dictionary {
+    Dictionary<Item> *previous;
+    Item *begin;
+    Item *end;
+  };
+  
+  void push(int v) {
+    if( stackBottom == 0 ) {
+      Serial.print("# Error; stack full at ");
+      Serial.print(MAX_STACK_DEPTH);
+      Serial.print(" items; cannot push value: ");
+      Serial.println(v);
+    } else {
+      stack[--stackBottom] = v;
+    }
+  }
+  
+  void pushStackFree() {
+    push( stackBottom );
+  }
+  
+  void printIntFromStack() {
+    Serial.println( stack[stackBottom] );
+  }
+  
+  const Word staticWords[] = {
+    {
+      isCompileTime: false,
+      isNative: true,
+      implementation: {
+        nativeFunction: pushStackFree
+      },
+      text: "stack-free"
+    },
+    {
+      isCompileTime: false,
+      isNative: true,
+      implementation: {
+        nativeFunction: printIntFromStack
+      },
+      text: "print-int"
+    }
+  };
+  const Dictionary<const Word> staticDict = {
+    previous: NULL,
+    begin: staticWords,
+    end: staticWords + sizeof(staticWords)
+  };
   
   void handleWord( char *buffer, int len ) {
     boolean isInteger = true;
@@ -40,9 +100,10 @@ namespace ArduForth {
     if( isInteger ) {
       Serial.print("You entered integer: ");
       Serial.println(intVal);
-      stack[stackDepth--] = intVal;
+      push(intVal);
     } else {
-      Serial.println("You entered some non-integer");
+      Serial.print("You entered some non-integer: ");
+      Serial.println(tokenBuffer);
     }
   }
   
