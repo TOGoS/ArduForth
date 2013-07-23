@@ -33,6 +33,24 @@ namespace ArduForth {
       Word *forthFunction;
     } implementation;
     char *text;
+    
+    void run( boolean compileTime ) const {
+      if( compileTime && !isCompileTime ) {
+        Serial.print("Word '");
+        Serial.print(text);
+        Serial.println("' is not a compile-time word, so ignoring at compile-time.");
+        // TODO: Add to definition
+      } else {
+        if( isNative ) {
+          implementation.nativeFunction();
+        } else {
+          Serial.print("Word '");
+          Serial.print(text);
+          Serial.println("' is not native; ignoring for now.");
+          // TODO: something with implementation.forthFunction
+        }
+      }
+    }
   };
   
   template <class Item>
@@ -40,11 +58,25 @@ namespace ArduForth {
     Dictionary<Item> *previous;
     Item *begin;
     Item *end;
+    
+    Item *find( char *text ) const {
+      for( Item *i = end-1; i>=begin; --i ) {
+        /*
+        Serial.print("Checking '");
+        Serial.print(i->text);
+        Serial.print("' == '");
+        Serial.print(text);
+        Serial.println("'");
+        */
+        if( strcmp(i->text, text) == 0 ) return i;
+      }
+      return NULL;
+    }
   };
   
   void push(int v) {
     if( stackBottom == 0 ) {
-      Serial.print("# Error; stack full at ");
+      Serial.print("# Error: stack full at ");
       Serial.print(MAX_STACK_DEPTH);
       Serial.print(" items; cannot push value: ");
       Serial.println(v);
@@ -53,12 +85,37 @@ namespace ArduForth {
     }
   }
   
+  int pop() {
+    if( stackBottom == MAX_STACK_DEPTH ) {
+      Serial.println("# Error: stack underflow");
+      return 0;
+    } else { 
+      return stack[stackBottom++];
+    }
+  }
+  
+  //// Builtin words ////
+  
   void pushStackFree() {
     push( stackBottom );
   }
-  
+  void printStack() {
+    for( int i = MAX_STACK_DEPTH - 1; i >= stackBottom; --i ) {
+      Serial.print( stack[i] );
+      Serial.print( " " );
+    }
+    Serial.println();
+  }
   void printIntFromStack() {
-    Serial.println( stack[stackBottom] );
+    Serial.println( pop() );
+  }
+  void addIntsFromStack() {
+    push( pop() + pop() );
+  }
+  void subtractIntsFromStack() {
+    int b = pop();
+    int a = pop();
+    push( a - b );
   }
   
   const Word staticWords[] = {
@@ -74,15 +131,42 @@ namespace ArduForth {
       isCompileTime: false,
       isNative: true,
       implementation: {
+        nativeFunction: printStack
+      },
+      text: "print-stack"
+    },
+    {
+      isCompileTime: false,
+      isNative: true,
+      implementation: {
         nativeFunction: printIntFromStack
       },
       text: "print-int"
+    },
+    {
+      isCompileTime: false,
+      isNative: true,
+      implementation: {
+        nativeFunction: addIntsFromStack
+      },
+      text: "+"
+    },
+    {
+      isCompileTime: false,
+      isNative: true,
+      implementation: {
+        nativeFunction: subtractIntsFromStack
+      },
+      text: "-"
     }
   };
+  
+  ////
+  
   const Dictionary<const Word> staticDict = {
     previous: NULL,
     begin: staticWords,
-    end: staticWords + sizeof(staticWords)
+    end: staticWords + (int)(sizeof(staticWords)/sizeof(Word))
   };
   
   void handleWord( char *buffer, int len ) {
@@ -98,13 +182,18 @@ namespace ArduForth {
     }
     
     if( isInteger ) {
-      Serial.print("You entered integer: ");
-      Serial.println(intVal);
       push(intVal);
-    } else {
-      Serial.print("You entered some non-integer: ");
-      Serial.println(tokenBuffer);
+      return;
     }
+    
+    const Word *word = staticDict.find(buffer);
+    if( word != NULL ) {
+      word->run( false );
+      return;
+    }
+    
+    Serial.print("# Error: unrecognised word: ");
+    Serial.println(tokenBuffer);
   }
   
   void flushToken() {
