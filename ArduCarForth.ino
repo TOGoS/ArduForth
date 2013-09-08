@@ -1,4 +1,7 @@
-namespace ArduForth {
+#include <Servo.h>
+#include <AFMotor.h>
+
+namespace ArduCarForth {
   const byte MAX_TOKEN_LENGTH = 32;
   const byte MAX_STACK_DEPTH = 32;
   
@@ -61,13 +64,6 @@ namespace ArduForth {
     
     Item *find( char *text ) const {
       for( Item *i = end-1; i>=begin; --i ) {
-        /*
-        Serial.print("Checking '");
-        Serial.print(i->text);
-        Serial.print("' == '");
-        Serial.print(text);
-        Serial.println("'");
-        */
         if( strcmp(i->text, text) == 0 ) return i;
       }
       return NULL;
@@ -118,6 +114,35 @@ namespace ArduForth {
     push( a - b );
   }
   
+  AF_DCMotor motor1(1, MOTOR12_64KHZ);
+  AF_DCMotor motor3(3, MOTOR12_64KHZ);
+  
+  // motor number, speed ->
+  void setMotorSpeed() {
+    int speed = pop();
+    int motorId = pop();
+    
+    AF_DCMotor *motor;
+    if( motorId == 1 ) {
+      motor = &motor1;
+    } else if( motorId == 3 ) {
+      motor = &motor3;
+    } else {
+      return;
+    }
+    
+    if( speed == 0 ) {
+      motor->setSpeed( 0 );
+      motor->run( RELEASE );
+    } else if( speed < 0 ) {
+      motor->setSpeed( -speed );
+      motor->run( BACKWARD );
+    } else {
+      motor->setSpeed( speed );
+      motor->run( FORWARD );
+    }
+  }
+  
   const Word staticWords[] = {
     {
       isCompileTime: false,
@@ -158,6 +183,14 @@ namespace ArduForth {
         nativeFunction: subtractIntsFromStack
       },
       text: "-"
+    },
+    {
+      isCompileTime: false,
+      isNative: true,
+      implementation: {
+        nativeFunction: setMotorSpeed
+      },
+      text: "set-motor-speed"
     }
   };
   
@@ -236,7 +269,7 @@ millis_t nextTickTime = 0;
 void loop() {
   millis_t time = millis();
   while( Serial.available() > 0 ) {
-    ArduForth::handleChar(Serial.read());
+    ArduCarForth::handleChar(Serial.read());
   }
   
   /*  timer demonstration
